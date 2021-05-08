@@ -6,10 +6,8 @@ G-BAGs are implemented in PyTorch as sparse multilayer perceptrons.
 Code to reproduce experiments.
 
 ## Motivation and Background
-A *Gradual Bipolar Argumentation Graph* (G-BAG) is defined as a quadruple ({{mathcal|A}}, Att, Sup, w), where $\mathcal{A}$ is a finite set of arguments, $Att \subseteq \mathcal{A} \times \mathcal{A}$ is the attack relation, $Sup \subseteq \mathcal{A} \times \mathcal{A}$ is the support relation and $w : \mathcal{A} \rightarrow \[0,1\]$ is a weight function.
+A *Gradual Bipolar Argumentation Graph* (G-BAG) is defined as a quadruple (<img src="https://render.githubusercontent.com/render/math?math=\mathcal{A}">, Att, Sup, w), where <img src="https://render.githubusercontent.com/render/math?math=\mathcal{A}"> is a finite set of arguments, <img src="https://render.githubusercontent.com/render/math?math=Att \subseteq \mathcal{A} \times \mathcal{A}"> is the attack relation, <img src="https://render.githubusercontent.com/render/math?math=Att \subseteq \mathcal{A} \times \mathcal{A}"><img src="https://render.githubusercontent.com/render/math?math=Sup \subseteq \mathcal{A} \times \mathcal{A}"> is the support relation and <img src="https://render.githubusercontent.com/render/math?math=w : \mathcal{A} \rightarrow [0,1]"> is a weight function.
 A G-BAG can be graphically represented as a directed graph consisting of nodes that show the arguments and edges that describe the relation between arguments. Attack relations are represented by solid and support relations by dashed edges.
-
-<img src="https://render.githubusercontent.com/render/math?math=e^{i \mathcal{A}} = -1">
 
 ![image](img/GBAG.png?raw=true "Graphical representation of a Gradual Bipolar Argumentation Graph")
 
