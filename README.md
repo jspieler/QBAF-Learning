@@ -6,7 +6,7 @@ G-BAGs are implemented in PyTorch as sparse multilayer perceptrons.
 Code to reproduce experiments.
 
 ## Motivation and Background
-An edge-weighted *Gradual Bipolar Argumentation Graph* (G-BAG) or *Gradual Argumentation Framework* (GAF) is defined as a quadruple\
+An edge-weighted *Gradual Bipolar Argumentation Graph* (G-BAG) or *Gradual Argumentation Framework* (GAF) is defined as a quadruple
 <img src="https://render.githubusercontent.com/render/math?math=(\mathcal{A}, E, \beta, w)">, where <img src="https://render.githubusercontent.com/render/math?math=\mathcal{A}"> is a finite set of arguments, <img src="https://render.githubusercontent.com/render/math?math=E \subseteq \mathcal{A} \times \mathcal{A}"> is a set of edges between the arguments, <img src="https://render.githubusercontent.com/render/math?math=\beta : \mathcal{A} \rightarrow [0,1]"> is a function that assigns a base score <img src="https://render.githubusercontent.com/render/math?math=\beta"> to every argument and <img src="https://render.githubusercontent.com/render/math?math=w : E \rightarrow [0,1]"> is a function that assign a weight to every edge.
 Edges with negative weights are called *attack* and edges with positive weights are called *support* relations.
 A G-BAG can be graphically represented as a directed graph consisting of nodes that show the arguments and edges that describe the relations between arguments. Attack relations are represented by solid and support relations by dashed edges.
