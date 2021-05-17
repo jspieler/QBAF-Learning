@@ -29,6 +29,7 @@ Following packages and libraries are required:
 * Pandas
 * Scikit-learn
 * SciPy
+* mlxtend
 
 Follow installation instructions and install [Pytorch Sparse](https://github.com/rusty1s/pytorch_sparse) package before installing ```SparseLinear```.
 

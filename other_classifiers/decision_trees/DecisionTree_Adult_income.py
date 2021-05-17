@@ -2,7 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pydotplus
+# import pydotplus
 from pandas import read_csv
 from sklearn import tree
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
