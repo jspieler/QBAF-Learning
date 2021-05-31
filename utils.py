@@ -280,7 +280,7 @@ class NeuralNetwork():
         layer = Layer(self, number_of_neurons, weights)
         self.layers.append(layer)
 
-    def draw(self, input_labels, output_labels, show_plot=False):
+    def draw(self, input_labels, output_labels):
         pyplot.figure(figsize=(10, 6))
         pyplot.gca().invert_yaxis()
         for i in range(len(self.layers)):
@@ -292,55 +292,53 @@ class NeuralNetwork():
         pyplot.axis('scaled')
         pyplot.axis('off')
         pyplot.tight_layout()
-        if show_plot:
-            pyplot.ion()
-            pyplot.show()
-            pyplot.draw()
-            pyplot.pause(0.01)
+        pyplot.ion()
+        pyplot.show()
+        pyplot.draw()
+        pyplot.pause(0.01)
 
 
 def visualization(best_fitness, mean_fitness, training_loss, validation_loss, y_test_non_category, y_pred_non_category,
-                  class_names, show_plots=False):
+                  class_names):
     """
     Create plots and (shown if 'show_plots' is set to 'True'):
     - mean and best fitness over number of generations
     - training and validation loss over number of generations
     - confusion matrix
     """
-    if show_plots:
-        pyplot.figure()
-        pyplot.plot(range(len(best_fitness)), best_fitness, "-k", label="Best individual")
-        pyplot.plot(range(len(mean_fitness)), mean_fitness, "--k", label="Mean of population")
-        pyplot.xlabel('Number of generations')
-        pyplot.ylabel('Fitness')
-        pyplot.legend(loc='best')
-        pyplot.ion()
-        pyplot.show()
-        pyplot.draw()
-        pyplot.pause(0.01)
+    pyplot.figure()
+    pyplot.plot(range(len(best_fitness)), best_fitness, "-k", label="Best individual")
+    pyplot.plot(range(len(mean_fitness)), mean_fitness, "--k", label="Mean of population")
+    pyplot.xlabel('Number of generations')
+    pyplot.ylabel('Fitness')
+    pyplot.legend(loc='best')
+    pyplot.ion()
+    pyplot.show()
+    pyplot.draw()
+    pyplot.pause(0.01)
 
-        pyplot.figure()
-        pyplot.plot(range(len(training_loss)), training_loss, "-k", label="Training loss")
-        pyplot.plot(range(len(validation_loss)), validation_loss, "--k", label="Validation loss")
-        pyplot.xlabel('Number of epochs')
-        pyplot.ylabel('Loss')
-        pyplot.legend(loc='best')
-        pyplot.ion()
-        pyplot.show()
-        pyplot.draw()
-        pyplot.pause(0.01)
+    pyplot.figure()
+    pyplot.plot(range(len(training_loss)), training_loss, "-k", label="Training loss")
+    pyplot.plot(range(len(validation_loss)), validation_loss, "--k", label="Validation loss")
+    pyplot.xlabel('Number of epochs')
+    pyplot.ylabel('Loss')
+    pyplot.legend(loc='best')
+    pyplot.ion()
+    pyplot.show()
+    pyplot.draw()
+    pyplot.pause(0.01)
 
-        cm = confusion_matrix(y_test_non_category, y_pred_non_category)
-        fig, ax = plot_confusion_matrix(conf_mat=cm,
-                                        show_absolute=True,
-                                        show_normed=False,
-                                        colorbar=True,
-                                        cmap=pyplot.cm.gray_r,
-                                        class_names=class_names)
-        bottom, top = ax.get_ylim()
-        ax.set_ylim(bottom + 0.5, top - 0.5)
-        pyplot.title('Confusion Matrix')
-        pyplot.ion()
-        pyplot.show()
-        pyplot.draw()
-        pyplot.pause(0.01)
+    cm = confusion_matrix(y_test_non_category, y_pred_non_category)
+    fig, ax = plot_confusion_matrix(conf_mat=cm,
+                                    show_absolute=True,
+                                    show_normed=False,
+                                    colorbar=True,
+                                    cmap=pyplot.cm.gray_r,
+                                    class_names=class_names)
+    bottom, top = ax.get_ylim()
+    ax.set_ylim(bottom + 0.5, top - 0.5)
+    pyplot.title('Confusion Matrix')
+    pyplot.ion()
+    pyplot.show()
+    pyplot.draw()
+    pyplot.pause(0.01)
