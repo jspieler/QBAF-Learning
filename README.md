@@ -96,6 +96,6 @@ Please contact me for questions.
 
 ## References
 <a id="1">[1]</a>
-Potyka, N. (2020) -
-Foundations for Solving Classification Problems with Quantitative Abstract Argumentation,
-Conference: International Workshop on Explainable and Interpretable Machine Learning (XI-ML)
+Potyka, N. (2021) -
+Interpreting Neural Networks as Quantitative Argumentation Frameworks,
+Thirty-Fifth AAAI Conference on Artificial Intelligence (AAAI 2021): 6463-6470
