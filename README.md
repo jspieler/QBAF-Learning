@@ -3,7 +3,7 @@
 Research project on structure learning of Gradual Bipolar Argumentation Graphs (G-BAGs) using Genetic Algorithms.\
 G-BAGs are implemented in PyTorch as sparse multilayer perceptrons.
 
-Code to reproduce experiments.
+Code to reproduce experiments from [[1]](#1).
 
 ## Motivation and Background
 An edge-weighted *Gradual Bipolar Argumentation Graph* (G-BAG) or *Gradual Argumentation Framework* (GAF) is defined as a quadruple
@@ -15,7 +15,7 @@ A G-BAG can be graphically represented as a directed graph consisting of nodes t
 
 Arguments are evaluated by numerical values, so-called acceptance or *strength values*. The acceptability of arguments is determined by a semantics which provides a partial function that assigns acceptability degrees to arguments based on their initial base scores and the relations between the arguments. The initial base scores may be seen as the acceptability of an argument without taking support or attack relations into account. The acceptability degree of an argument is typically calculated by a modular update function consisting of an aggregation function <img src="https://render.githubusercontent.com/render/math?math=\alpha"> and an influence function <img src="https://render.githubusercontent.com/render/math?math=\iota">.
 
-As shown by [[1]](#1), a multilayer perceptron (MLP) can be interpreted as a G-BAG when an aggregation function is used that uses summation and an influence function that is similar to the activation function of a neural network. Since only acyclic G-BAGs are considered, they can be seen as sparse MLPs. This allows to perform parameter learning by means of a forward-pass and backpropagation.
+As shown by [[2]](#2), a multilayer perceptron (MLP) can be interpreted as a G-BAG when an aggregation function is used that uses summation and an influence function that is similar to the activation function of a neural network. Since only acyclic G-BAGs are considered, they can be seen as sparse MLPs. This allows to perform parameter learning by means of a forward-pass and backpropagation.
 
 The aim is then to use genetic algorithms in order to learn the structure of G-BAGs. Since we are interested in well interpretable G-BAGs to solve classification problems, the fitness function balances sparseness and accuracy of the classifier. 
 
@@ -96,6 +96,11 @@ Please contact me for questions.
 
 ## References
 <a id="1">[1]</a>
+Spieler, J., Potyka, N., & Staab, S. (2021) - 
+Learning Gradual Argumentation Frameworks using Genetic Algorithms,
+arXiv preprint arXiv:2106.13585.
+https://arxiv.org/pdf/2106.13585.pdf
+<a id="2">[2]</a>
 Potyka, N. (2021) -
 Interpreting Neural Networks as Quantitative Argumentation Frameworks,
 Thirty-Fifth AAAI Conference on Artificial Intelligence (AAAI 2021): 6463-6470
