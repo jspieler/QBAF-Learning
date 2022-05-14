@@ -92,7 +92,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
 
-Please contact me for questions.
+Please contact us for questions.
 
 ## References
 <a id="1">[1]</a>
@@ -100,6 +100,7 @@ Spieler, J., Potyka, N., & Staab, S. (2021) -
 Learning Gradual Argumentation Frameworks using Genetic Algorithms,
 arXiv preprint arXiv:2106.13585.
 https://arxiv.org/pdf/2106.13585.pdf
+
 <a id="2">[2]</a>
 Potyka, N. (2021) -
 Interpreting Neural Networks as Quantitative Argumentation Frameworks,
