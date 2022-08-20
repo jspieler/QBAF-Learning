@@ -1,61 +1,20 @@
 from copy import deepcopy
 
 import numpy as np
-import sparselinear
 import torch
 import csv
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from GBAG import GBAG as GBAG
-from utils import remove_connections, NeuralNetwork, visualization
-
-
-def cross_entropy_one_hot(input, target):
-    _, labels = target.max(dim=1)
-    return torch.nn.CrossEntropyLoss()(input, labels)
-
-
-def binary_cross_entropy_one_hot(input, target):
-    _, labels = input.max(dim=1)
-    # float/integer values required -> cast
-    labels = labels.type(torch.LongTensor)
-    target = target.type(torch.LongTensor)
-    return torch.nn.BCELoss()(labels, target)
-
-
-def _accuracy(y_pred, y_true):
-    classes = torch.argmax(y_pred, dim=1)
-    if len(y_true.shape) > 1:
-        labels = torch.argmax(y_true, dim=1)
-    else:
-        labels = y_true
-    accuracy = torch.mean((classes == labels).float())
-    return accuracy
-
-
-def sparsity(model):
-    """ Get sparsity of model """
-    num_conn = 0
-    max_num_conn = 0
-    for layer in model.children():
-        if isinstance(layer, sparselinear.SparseLinear):
-            num_conn += layer.connectivity.shape[1]
-            max_num_conn += layer.in_features * layer.out_features
-    reg_term = (max_num_conn - num_conn) / max_num_conn
-    return reg_term
-
-
-def create_random_connectivity_matrix(in_size, out_size, num_connections):
-    col = torch.randint(low=0, high=in_size, size=(num_connections,)).view(1, -1).long()
-    row = torch.randint(low=0, high=out_size, size=(num_connections,)).view(1, -1).long()
-    connections = torch.cat((row, col), dim=0)
-    return connections
+from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
+from genetic_algorithm.utils.graph_visualizations import remove_connections, NeuralNetwork
+from genetic_algorithm.utils.metrics import accuracy, sparsity
+from genetic_algorithm.utils.plots import plot_fitness, plot_loss, plot_conf_matrix
 
 
 class GeneticAlgorithm:
-    """
-    Implementation of a genetic algorithm to evolve the structure of (sparse) multilayer perceptrons / GBAGs
+    """Implementation of a genetic algorithm to evolve the structure of (sparse) multilayer perceptrons / GBAGs
 
     Parameters
     ----------
@@ -449,7 +408,7 @@ class GeneticAlgorithm:
         """
         gbag = GBAG
         self.create_population(gbag)
-        self.fitness(self.population, X_tr, y_tr, X_val, y_val, metrics=_accuracy)
+        self.fitness(self.population, X_tr, y_tr, X_val, y_val, metrics=accuracy)
 
         best_fitness = []
         mean_fitness = []
@@ -548,7 +507,7 @@ class GeneticAlgorithm:
 
             # evaluate fitness of new population
             self.fitness(self.population[int(self.params['elitist_pct'] * self.params['population_size']):], X_tr, y_tr,
-                         X_val, y_val, metrics=_accuracy)
+                         X_val, y_val, metrics=accuracy)
 
             print("Generation {} finished".format(g + 1))
 
@@ -568,7 +527,7 @@ class GeneticAlgorithm:
             clf.eval()
             y_pred = clf(X_te)
             test_loss = self.loss_function(y_pred, y_te)
-            test_accuracy = _accuracy(y_pred, y_te)
+            test_accuracy = accuracy(y_pred, y_te)
             print("Best individual - loss on test data: {:.4}".format(test_loss))
             print("Best individual - accuracy on test data: {:.4}".format(test_accuracy))
 
@@ -589,8 +548,9 @@ class GeneticAlgorithm:
 
         # visualizations (default: not shown, set 'show_plots' to 'True' otherwise)
         if self.show_plots:
-            visualization(best_fitness, mean_fitness, clf.training_loss, clf.val_loss,
-                          labels, classes, class_labels)
+            plot_fitness(best_fitness, mean_fitness)
+            plot_loss(clf.training_loss, clf.val_loss)
+            plot_conf_matrix(labels, classes, class_labels)
 
         # draw argumentation classifier (default: not shown, set 'show_graph' to 'True' otherwise)
         if self.show_graph:
