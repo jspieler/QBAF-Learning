@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import numpy as np
 import torch
 import csv
@@ -7,6 +5,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from GBAG import GBAG as GBAG
+from genetic_algorithm.operators.crossover import SinglePointCrossover, TwoPointCrossover
 from genetic_algorithm.operators.mutation import FlipMutation, SwapMutationBetweenChromosomes
 from genetic_algorithm.operators.selection import RankSelection, RouletteWheelSelection, TournamentSelection
 from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
@@ -16,6 +15,7 @@ from genetic_algorithm.utils.plots import plot_fitness, plot_loss, plot_conf_mat
 
 
 selection_operators = {"roulette_wheel_selection": RouletteWheelSelection, "rank_selection": RankSelection, "tournament_selection": TournamentSelection}
+crossover_operators = {"one_point_crossover": SinglePointCrossover, "two_point_crossover": TwoPointCrossover}
 mutation_operators = {"flip_mutation": FlipMutation, "swap_mutation": SwapMutationBetweenChromosomes}
 
 
@@ -32,7 +32,7 @@ class GeneticAlgorithm:
                     {'roulette_wheel_selection', 'tournament_selection', 'rank_selection'}
 
     crossover_method : method for crossover operator
-                    {'one_point_crossover', 'two_point_crossover', 'layerwise_crossover'}
+                    {'one_point_crossover', 'two_point_crossover'}
 
     mutation_method : method for mutation operator
                     {'flip_mutation', 'swap_mutation'}
@@ -62,7 +62,8 @@ class GeneticAlgorithm:
         self.output_size = output_size
         try:
             self.selection_operator = selection_operators[selection_method](num_parents=int(0.5 * params['population_size']))
-            self.crossover_method = crossover_method
+            self.crossover_operator = crossover_operators[crossover_method](params['crossover_rate'], num_offspring=int(
+                    (1 - params['elitist_pct']) * params['population_size']))
             self.mutation_operator = mutation_operators[mutation_method](params['mutation_rate'])
         except KeyError as e:
             raise NotImplementedError(f"Got unknown method {e} for one of the operators.")
@@ -236,130 +237,6 @@ class GeneticAlgorithm:
             parents.append(self.population[rand_ind[parent_idx]])
         return parents
 
-    def single_point_crossover(self, parents, num_offspring):
-        """
-        Single-point crossover randomly selects a point for crossover between pairs of parents
-        """
-        offspring = np.empty((num_offspring, parents.shape[1]))
-        c = 0
-        while c < num_offspring:
-            par1_idx, par2_idx = np.random.choice(range(parents.shape[0]), 2, False)
-            crossover_pt = np.random.randint(low=0, high=parents.shape[1], size=1)[0]
-            if self.params['crossover_rate'] != None:
-                probs = np.random.random(size=2)
-                ind = np.where(probs <= self.params['crossover_rate'])[0]
-                if ind.shape[0] == 0:  # no crossover, parents are selected
-                    offspring[c, :] = parents[c % parents.shape[0], :]
-                    c += 2
-                    continue
-                elif ind.shape[0] == 1:
-                    parent1_idx = par1_idx
-                    parent2_idx = parent1_idx
-                    offspring[c, 0:crossover_pt] = parents[parent1_idx, 0:crossover_pt]
-                    offspring[c, crossover_pt:] = parents[parent2_idx, crossover_pt:]
-                    c += 1
-                    continue
-                else:
-                    offspring[c, 0:crossover_pt] = parents[par1_idx, 0:crossover_pt]
-                    offspring[c, crossover_pt:] = parents[par2_idx, crossover_pt:]
-                    if c <= num_offspring - 2:  # only if number of offspring is not reached
-                        offspring[c + 1, 0:crossover_pt] = parents[par2_idx, 0:crossover_pt]
-                        offspring[c + 1, crossover_pt:] = parents[par1_idx, crossover_pt:]
-                        c += 2
-                    else:
-                        c += 1
-        return offspring
-
-    def two_point_crossover(self, parents, num_offspring):
-        """
-        Two points are randomly selected for crossover between pairs of parents
-        Ordered crossover method as proposed by Goldberg
-
-        Genes at beginning and end of chromosome are from first parent,
-        genes between the 2 points are copied from second parent
-        """
-        offspring = np.empty((num_offspring, parents.shape[1]))
-        c = 0
-        while c < num_offspring:
-            par1_idx, par2_idx = np.random.choice(range(parents.shape[0]), 2, False)
-            crossover_pt1 = np.random.randint(low=0, high=np.ceil(parents.shape[1] / 2 + 1), size=1)[0]
-            crossover_pt2 = crossover_pt1 + int(parents.shape[1] / 2)
-            if self.params['crossover_rate'] != None:
-                probs = np.random.random(size=2)
-                ind = np.where(probs <= self.params['crossover_rate'])[0]
-                if ind.shape[0] == 0:
-                    offspring[c, :] = parents[c % parents.shape[0], :]
-                    c += 2
-                    continue
-                elif ind.shape[0] == 1:
-                    parent1_idx = par1_idx
-                    parent2_idx = parent1_idx
-                    offspring[c, 0:crossover_pt1] = parents[parent1_idx, 0:crossover_pt1]
-                    offspring[c, crossover_pt2:] = parents[parent1_idx, crossover_pt2:]
-                    offspring[c, crossover_pt1:crossover_pt2] = parents[parent2_idx, crossover_pt1:crossover_pt2]
-                    c += 1
-                    continue
-                else:
-                    offspring[c, 0:crossover_pt1] = parents[par1_idx, 0:crossover_pt1]
-                    offspring[c, crossover_pt2:] = parents[par1_idx, crossover_pt2:]
-                    offspring[c, crossover_pt1:crossover_pt2] = parents[par2_idx, crossover_pt1:crossover_pt2]
-                    if c <= num_offspring - 2:  # only if number of offspring is not reached
-                        offspring[c + 1, 0:crossover_pt1] = parents[par2_idx, 0:crossover_pt1]
-                        offspring[c + 1, crossover_pt2:] = parents[par2_idx, crossover_pt2:]
-                        offspring[c + 1, crossover_pt1:crossover_pt2] = parents[par1_idx, crossover_pt1:crossover_pt2]
-                        c += 2
-                    else:
-                        c += 1
-        return offspring
-
-    def crossover_layer(self, parents, num_offspring):
-        """
-        Crossover by exchanging layers between parents: a layer is chosen randomly and their connection indices
-        are exchanged between two parents.
-        Note: in this case inputs are the parents (GBAGs) not their encoding
-        Currently, only implemented for one hidden layer
-        """
-        offspring = []
-        c = 0
-        while c < num_offspring:
-            prob = np.random.random(size=1)
-            par1_idx, par2_idx = np.random.choice(range(len(parents)), 2, False)
-            if prob <= self.params['crossover_rate']:
-                layer_idx = np.random.randint(low=0, high=1, size=1)
-                offspring.append(deepcopy(parents[par1_idx]))
-                if layer_idx == 0:
-                    value = 'sparse_linear1.connectivity'
-                    prefix, suffix = value.rsplit(".", 1)
-                    ref = getattr(offspring[c], prefix)
-                    setattr(ref, suffix, parents[par2_idx].sparse_linear1.connectivity)
-                    if c <= num_offspring - 2:
-                        offspring.append(deepcopy(parents[par2_idx]))
-                        ref = getattr(offspring[c + 1], prefix)
-                        setattr(ref, suffix, parents[par1_idx].sparse_linear1.connectivity)
-                        c += 2
-                    else:
-                        c += 1
-                else:
-                    value = 'sparse_linear2.connectivity'
-                    prefix, suffix = value.rsplit(".", 1)
-                    ref = getattr(offspring[c], prefix)
-                    setattr(ref, suffix, parents[par2_idx].sparse_linear2.connectivity)
-                    if c <= num_offspring - 2:
-                        offspring.append(deepcopy(parents[par2_idx]))
-                        ref = getattr(offspring[c + 1], prefix)
-                        setattr(ref, suffix, parents[par1_idx].sparse_linear2.connectivity)
-                        c += 2
-                    else:
-                        c += 1
-            else:  # no crossover applied
-                offspring.append(parents[par1_idx])
-                if c <= num_offspring - 2:
-                    offspring.append(parents[par2_idx])
-                    c += 2
-                else:
-                    c += 1
-        return offspring
-
     def run(self, X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels, class_labels, file_name):
         """
         Run genetic algorithm for given configuration
@@ -415,30 +292,8 @@ class GeneticAlgorithm:
                                      out_dim=self.output_size)
 
             # crossover
-            if self.crossover_method == 'two_point_crossover':
-                crossover_offspring = self.two_point_crossover(pc1, int(
-                    (1 - self.params['elitist_pct']) * self.params['population_size']))
-                crossover_offspring2 = self.two_point_crossover(pc2, int(
-                    (1 - self.params['elitist_pct']) * self.params['population_size']))
-            elif self.crossover_method == 'one_point_crossover':
-                crossover_offspring = self.single_point_crossover(pc1, int(
-                    (1 - self.params['elitist_pct']) * self.params['population_size']))
-                crossover_offspring2 = self.two_point_crossover(pc2, int(
-                    (1 - self.params['elitist_pct']) * self.params['population_size']))
-            elif self.crossover_method == 'layerwise_crossover':
-                crossover_offspring_layer_wise = self.crossover_layer(self.population, int(
-                    (1 - self.params['elitist_pct']) * self.params['population_size']))
-                crossover_offspring = np.empty(
-                    shape=(len(crossover_offspring_layer_wise), self.input_size * self.params['hidden_size']))
-                crossover_offspring2 = np.empty(
-                    shape=(len(crossover_offspring_layer_wise), self.params['hidden_size'] * self.output_size))
-                for i, p in enumerate(crossover_offspring_layer_wise):
-                    crossover_offspring[i] = self.encode(p.sparse_linear1.connectivity, in_dim=self.input_size,
-                                                         out_dim=self.params['hidden_size'])
-                    crossover_offspring2[i] = self.encode(p.sparse_linear2.connectivity,
-                                                          in_dim=self.params['hidden_size'], out_dim=self.output_size)
-            else:
-                raise ValueError("Got unknown method for crossover operator.")
+            crossover_offspring = self.crossover_operator.crossover(pc1)
+            crossover_offspring2 = self.crossover_operator.crossover(pc2)
 
             # mutation
             mutation_offspring = self.mutation_operator.mutate(crossover_offspring)
