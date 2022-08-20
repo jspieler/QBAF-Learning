@@ -5,18 +5,41 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from GBAG import GBAG as GBAG
-from genetic_algorithm.operators.crossover import SinglePointCrossover, TwoPointCrossover
-from genetic_algorithm.operators.mutation import FlipMutation, SwapMutationBetweenChromosomes
-from genetic_algorithm.operators.selection import RankSelection, RouletteWheelSelection, TournamentSelection
+from genetic_algorithm.operators.crossover import (
+    SinglePointCrossover,
+    TwoPointCrossover,
+)
+from genetic_algorithm.operators.mutation import (
+    FlipMutation,
+    SwapMutationBetweenChromosomes,
+)
+from genetic_algorithm.operators.selection import (
+    RankSelection,
+    RouletteWheelSelection,
+    TournamentSelection,
+)
 from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
-from genetic_algorithm.utils.graph_visualizations import remove_connections, NeuralNetwork
+from genetic_algorithm.utils.graph_visualizations import (
+    remove_connections,
+    NeuralNetwork,
+)
 from genetic_algorithm.utils.metrics import accuracy, sparsity
 from genetic_algorithm.utils.plots import plot_fitness, plot_loss, plot_conf_matrix
 
 
-selection_operators = {"roulette_wheel_selection": RouletteWheelSelection, "rank_selection": RankSelection, "tournament_selection": TournamentSelection}
-crossover_operators = {"one_point_crossover": SinglePointCrossover, "two_point_crossover": TwoPointCrossover}
-mutation_operators = {"flip_mutation": FlipMutation, "swap_mutation": SwapMutationBetweenChromosomes}
+selection_operators = {
+    "roulette_wheel_selection": RouletteWheelSelection,
+    "rank_selection": RankSelection,
+    "tournament_selection": TournamentSelection,
+}
+crossover_operators = {
+    "one_point_crossover": SinglePointCrossover,
+    "two_point_crossover": TwoPointCrossover,
+}
+mutation_operators = {
+    "flip_mutation": FlipMutation,
+    "swap_mutation": SwapMutationBetweenChromosomes,
+}
 
 
 class GeneticAlgorithm:
@@ -56,17 +79,38 @@ class GeneticAlgorithm:
                 {'True', 'False'}, default='False'
 
     """
-    def __init__(self, input_size, output_size, selection_method, crossover_method, mutation_method, params,
-                 loss_function, show_graph=False, show_plots=False):
+
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        selection_method,
+        crossover_method,
+        mutation_method,
+        params,
+        loss_function,
+        show_graph=False,
+        show_plots=False,
+    ):
         self.input_size = input_size
         self.output_size = output_size
         try:
-            self.selection_operator = selection_operators[selection_method](num_parents=int(0.5 * params['population_size']))
-            self.crossover_operator = crossover_operators[crossover_method](params['crossover_rate'], num_offspring=int(
-                    (1 - params['elitist_pct']) * params['population_size']))
-            self.mutation_operator = mutation_operators[mutation_method](params['mutation_rate'])
+            self.selection_operator = selection_operators[selection_method](
+                num_parents=int(0.5 * params["population_size"])
+            )
+            self.crossover_operator = crossover_operators[crossover_method](
+                params["crossover_rate"],
+                num_offspring=int(
+                    (1 - params["elitist_pct"]) * params["population_size"]
+                ),
+            )
+            self.mutation_operator = mutation_operators[mutation_method](
+                params["mutation_rate"]
+            )
         except KeyError as e:
-            raise NotImplementedError(f"Got unknown method {e} for one of the operators.")
+            raise NotImplementedError(
+                f"Got unknown method {e} for one of the operators."
+            )
         self.params = params
         self.loss_function = loss_function
         self.show_graph = show_graph
@@ -78,9 +122,11 @@ class GeneticAlgorithm:
         Encode structure of graph as a bit string for genetic algorithm (concatenation of rows of connectivity matrix)
         """
         nnz = connectivity_matrix.shape[1]
-        adj = torch.sparse.FloatTensor(connectivity_matrix, torch.ones(nnz), torch.Size([out_dim, in_dim])).to_dense()
+        adj = torch.sparse.FloatTensor(
+            connectivity_matrix, torch.ones(nnz), torch.Size([out_dim, in_dim])
+        ).to_dense()
         adj = adj.type(torch.DoubleTensor)
-        adj = torch.where(adj <= 1, adj, 1.)  # remove redundant connections
+        adj = torch.where(adj <= 1, adj, 1.0)  # remove redundant connections
         return torch.flatten(adj)
 
     def decode(self, chromosome, shape):
@@ -104,18 +150,43 @@ class GeneticAlgorithm:
 
     def create_population(self, individual):
         self.population = [
-            individual(input_size=self.input_size, hidden_size=self.params['hidden_size'], output_size=self.output_size,
-                       connections1=create_random_connectivity_matrix(self.input_size, self.params['hidden_size'],
-                                                                      self.params['number_connections1']),
-                       connections2=create_random_connectivity_matrix(self.params['hidden_size'], self.output_size,
-                                                                      self.params['number_connections2']))
-            for _ in range(self.params['population_size'])]
+            individual(
+                input_size=self.input_size,
+                hidden_size=self.params["hidden_size"],
+                output_size=self.output_size,
+                connections1=create_random_connectivity_matrix(
+                    self.input_size,
+                    self.params["hidden_size"],
+                    self.params["number_connections1"],
+                ),
+                connections2=create_random_connectivity_matrix(
+                    self.params["hidden_size"],
+                    self.output_size,
+                    self.params["number_connections2"],
+                ),
+            )
+            for _ in range(self.params["population_size"])
+        ]
 
-    def fitness(self, population, x_train, y_train, x_val, y_val, metrics, opt_func=torch.optim.Adam, minibatch=False):
+    def fitness(
+        self,
+        population,
+        x_train,
+        y_train,
+        x_val,
+        y_val,
+        metrics,
+        opt_func=torch.optim.Adam,
+        minibatch=False,
+    ):
         # get fitness/loss of each individual
         for individual in population:
-            individual.fitness = torch.autograd.Variable(torch.tensor(np.inf, dtype=torch.float))
-            optimizer = opt_func(individual.parameters(), lr=self.params['learning_rate'])
+            individual.fitness = torch.autograd.Variable(
+                torch.tensor(np.inf, dtype=torch.float)
+            )
+            optimizer = opt_func(
+                individual.parameters(), lr=self.params["learning_rate"]
+            )
             if minibatch:
                 train_ds = TensorDataset(x_train, y_train)
                 train_dl = DataLoader(train_ds, batch_size=256, shuffle=True)
@@ -123,7 +194,7 @@ class GeneticAlgorithm:
             validation_loss = []
             best_score = None
             count = 0
-            for epoch in range(self.params['number_epochs']):
+            for epoch in range(self.params["number_epochs"]):
                 if minibatch:
                     batch_loss = 0.0
                     batch_accuracy = 0.0
@@ -146,8 +217,9 @@ class GeneticAlgorithm:
                     optimizer.step()
                     train_loss.append(loss.item())
                     accuracy = metrics(y_pred_train, y_train).item()
-                individual.fitness = (1 - self.params['lambda']) * accuracy + self.params['lambda'] * sparsity(
-                    individual)
+                individual.fitness = (
+                    1 - self.params["lambda"]
+                ) * accuracy + self.params["lambda"] * sparsity(individual)
                 individual.accuracy = accuracy
                 individual.sparsity = sparsity(individual)
                 individual.training_loss = train_loss
@@ -160,84 +232,27 @@ class GeneticAlgorithm:
                 score = -val_loss.item()
                 if best_score is None:
                     best_score = score
-                elif score < best_score + self.params['tolerance_ES']:
+                elif score < best_score + self.params["tolerance_ES"]:
                     count += 1
                 else:
                     best_score = score
                     count = 0
-                if count >= self.params['patience_ES']:
+                if count >= self.params["patience_ES"]:
                     break
             individual.val_loss = validation_loss
 
-    def roulette_wheel_selection(self, num_parents):
-
-        """
-        Selects the parents using the roulette wheel selection technique.
-        Later, these parents will mate to produce the offspring.
-        It accepts one parameter:
-            -num_parents: The number of parents to be selected.
-        It returns an array of the selected parents.
-        """
-        fitness_sum = sum([individual.fitness for individual in self.population])
-        probs = [individual.fitness / fitness_sum for individual in self.population]
-        probs_start = np.zeros(np.shape(probs),
-                               dtype=np.float)  # array with start values of the ranges of probabilities
-        probs_end = np.zeros(np.shape(probs),
-                             dtype=np.float)  # array with end values of the ranges of probabilities
-        curr = 0.0
-
-        # form roulette wheel
-        for _ in range(np.shape(probs)[0]):
-            min_probs_idx = np.argmin(probs)
-            probs_start[min_probs_idx] = curr
-            curr = curr + probs[min_probs_idx]
-            probs_end[min_probs_idx] = curr
-            probs[min_probs_idx] = 99999999999
-
-        # Select best individuals in current generation as parents for producing offspring of next generation
-        parents = []
-        for parent_num in range(num_parents):
-            rand_prob = np.random.rand()
-            for idx in range(np.shape(probs)[0]):
-                if (rand_prob >= probs_start[idx] and rand_prob < probs_end[idx]):
-                    parents.append(self.population[idx])
-                    break
-        return parents
-
-    def rank_selection(self, num_parents):
-        """
-        Selects 'num_parents' many parent individuals using rank selection technique.
-        """
-        fitness = [individual.fitness for individual in self.population]
-        fitness_sorted = sorted(range(len(fitness)), key=lambda k: fitness[k])
-        fitness_sorted.reverse()  # sort in descending order
-        parents = []
-        for parent_num in range(num_parents):
-            parents.append(self.population[fitness_sorted[parent_num]])
-        return parents
-
-    def tournament_selection(self, num_parents, q=3):
-        """
-        Selects parents using tournament selection technique.
-        q: number of tournaments (individuals that are compared in every iteration), default: 3
-        """
-        fitness = [individual.fitness for individual in self.population]
-        fitness = np.array(fitness)
-        parents = []
-        used_ind = []
-        for parent_num in range(num_parents):
-            rand_ind = np.random.choice(range(len(fitness)), q, False)
-            # check if individual was already used and create new random indices if
-            for element in rand_ind:
-                if element in used_ind:
-                    rand_ind = np.random.choice(range(len(fitness)), q, False)
-            parent_idx = np.where(fitness[rand_ind] == np.max(fitness[rand_ind]))[0][0]
-            # store used indices to avoid that an individual is used more than once
-            used_ind.append(rand_ind[parent_idx])
-            parents.append(self.population[rand_ind[parent_idx]])
-        return parents
-
-    def run(self, X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels, class_labels, file_name):
+    def run(
+        self,
+        X_tr,
+        y_tr,
+        X_val,
+        y_val,
+        X_te,
+        y_te,
+        input_labels,
+        class_labels,
+        file_name,
+    ):
         """
         Run genetic algorithm for given configuration
 
@@ -255,7 +270,7 @@ class GeneticAlgorithm:
         mean_fitness = []
         count = 0
         best_score = None
-        for g in range(self.params['number_generations']):
+        for g in range(self.params["number_generations"]):
             fitness = [indiv.fitness for indiv in self.population]
             idx = np.argmax(fitness)
             best_fitness.append(self.population[idx].fitness)
@@ -264,32 +279,46 @@ class GeneticAlgorithm:
             # stop genetic algorithm if accuracy does not increase for a certain number of generations
             if best_score is None:
                 best_score = best_fitness[g]
-            elif best_fitness[g] - best_score < self.params['tolerance_GA']:
+            elif best_fitness[g] - best_score < self.params["tolerance_GA"]:
                 count += 1
             else:
                 best_score = best_fitness[g]
                 count = 0
-            if count >= self.params['patience_GA']:
+            if count >= self.params["patience_GA"]:
                 break
 
             # elitism: pass certain percentage of best individuals directly to next generation
             fitness_sorted = sorted(range(len(fitness)), key=lambda k: fitness[k])
             fitness_sorted.reverse()  # sort in descending order
             elitist = []  # fitness proportionate selection
-            for index in sorted(fitness_sorted[:int(self.params['elitist_pct'] * self.params['population_size'])]):
+            for index in sorted(
+                fitness_sorted[
+                    : int(self.params["elitist_pct"] * self.params["population_size"])
+                ]
+            ):
                 elitist.append(self.population[index])
 
             # selection
             parents = self.selection_operator.select(self.population)
 
             # encoding of chromosomes
-            pc1 = torch.empty(size=(len(parents), self.input_size * self.params['hidden_size']))
-            pc2 = torch.empty(size=(len(parents), self.params['hidden_size'] * self.output_size))
+            pc1 = torch.empty(
+                size=(len(parents), self.input_size * self.params["hidden_size"])
+            )
+            pc2 = torch.empty(
+                size=(len(parents), self.params["hidden_size"] * self.output_size)
+            )
             for i, p in enumerate(parents):
-                pc1[i] = self.encode(p.sparse_linear1.connectivity, in_dim=self.input_size,
-                                     out_dim=self.params['hidden_size'])
-                pc2[i] = self.encode(p.sparse_linear2.connectivity, in_dim=self.params['hidden_size'],
-                                     out_dim=self.output_size)
+                pc1[i] = self.encode(
+                    p.sparse_linear1.connectivity,
+                    in_dim=self.input_size,
+                    out_dim=self.params["hidden_size"],
+                )
+                pc2[i] = self.encode(
+                    p.sparse_linear2.connectivity,
+                    in_dim=self.params["hidden_size"],
+                    out_dim=self.output_size,
+                )
 
             # crossover
             crossover_offspring = self.crossover_operator.crossover(pc1)
@@ -302,18 +331,42 @@ class GeneticAlgorithm:
             # form new generation
             self.population = elitist
             # reshape connectivity matrices and create new G-BAGs (offspring) given the new connectivity matrix
-            for i, o in enumerate(range(int((1 - self.params['elitist_pct']) * self.params['population_size']))):
-                sl1_conn = self.decode(mutation_offspring[i],
-                                       shape=(self.input_size, self.params['hidden_size']))
-                sl2_conn = self.decode(mutation_offspring2[i],
-                                       shape=(self.params['hidden_size'], self.output_size))
-                child = GBAG(input_size=self.input_size, hidden_size=self.params['hidden_size'],
-                             output_size=self.output_size, connections1=sl1_conn, connections2=sl2_conn)
+            for i, o in enumerate(
+                range(
+                    int(
+                        (1 - self.params["elitist_pct"])
+                        * self.params["population_size"]
+                    )
+                )
+            ):
+                sl1_conn = self.decode(
+                    mutation_offspring[i],
+                    shape=(self.input_size, self.params["hidden_size"]),
+                )
+                sl2_conn = self.decode(
+                    mutation_offspring2[i],
+                    shape=(self.params["hidden_size"], self.output_size),
+                )
+                child = GBAG(
+                    input_size=self.input_size,
+                    hidden_size=self.params["hidden_size"],
+                    output_size=self.output_size,
+                    connections1=sl1_conn,
+                    connections2=sl2_conn,
+                )
                 self.population.append(child)
 
             # evaluate fitness of new population
-            self.fitness(self.population[int(self.params['elitist_pct'] * self.params['population_size']):], X_tr, y_tr,
-                         X_val, y_val, metrics=accuracy)
+            self.fitness(
+                self.population[
+                    int(self.params["elitist_pct"] * self.params["population_size"]) :
+                ],
+                X_tr,
+                y_tr,
+                X_val,
+                y_val,
+                metrics=accuracy,
+            )
 
             print("Generation {} finished".format(g + 1))
 
@@ -325,7 +378,11 @@ class GeneticAlgorithm:
         best_fitness.append(clf.fitness)
         mean_fitness.append(np.mean(fitness))
         training_accuracy = clf.accuracy
-        print("Best individual - accuracy on training data: {:.4}".format(training_accuracy))
+        print(
+            "Best individual - accuracy on training data: {:.4}".format(
+                training_accuracy
+            )
+        )
         print("Mean accuracy on training data: {:.4}".format(np.mean(acc)))
 
         # evaluate best model on test data
@@ -335,7 +392,9 @@ class GeneticAlgorithm:
             test_loss = self.loss_function(y_pred, y_te)
             test_accuracy = accuracy(y_pred, y_te)
             print("Best individual - loss on test data: {:.4}".format(test_loss))
-            print("Best individual - accuracy on test data: {:.4}".format(test_accuracy))
+            print(
+                "Best individual - accuracy on test data: {:.4}".format(test_accuracy)
+            )
 
             classes = torch.argmax(y_pred, dim=1)
             if len(y_te.shape) > 1:
@@ -349,7 +408,10 @@ class GeneticAlgorithm:
 
         # remove not meaningful connections
         rem, i_ind = remove_connections(clf)
-        num_connections = rem.sparse_linear1.connectivity.shape[1] + rem.sparse_linear2.connectivity.shape[1]
+        num_connections = (
+            rem.sparse_linear1.connectivity.shape[1]
+            + rem.sparse_linear2.connectivity.shape[1]
+        )
         print("Best individual - number of connections: {}".format(num_connections))
 
         # visualizations (default: not shown, set 'show_plots' to 'True' otherwise)
@@ -368,15 +430,21 @@ class GeneticAlgorithm:
             val1 = rem.sparse_linear1.weight._values()
             s1 = rem.sparse_linear1.out_features
             s2 = rem.sparse_linear1.in_features
-            weights1 = torch.sparse.FloatTensor(ind1, val1, torch.Size([s1, s2])).to_dense()
+            weights1 = torch.sparse.FloatTensor(
+                ind1, val1, torch.Size([s1, s2])
+            ).to_dense()
 
             ind2 = rem.sparse_linear2.weight._indices()
             val2 = rem.sparse_linear2.weight._values()
             s3 = rem.sparse_linear2.out_features
             s4 = rem.sparse_linear2.in_features
-            weights2 = torch.sparse.FloatTensor(ind2, val2, torch.Size([s3, s4])).to_dense()
+            weights2 = torch.sparse.FloatTensor(
+                ind2, val2, torch.Size([s3, s4])
+            ).to_dense()
 
-            number_of_neurons_in_widest_layer = max(rem.sparse_linear1.in_features, rem.sparse_linear2.out_features)
+            number_of_neurons_in_widest_layer = max(
+                rem.sparse_linear1.in_features, rem.sparse_linear2.out_features
+            )
             network = NeuralNetwork(number_of_neurons_in_widest_layer)
             network.add_layer(s2, weights1)
             network.add_layer(s4, weights2)
@@ -384,7 +452,16 @@ class GeneticAlgorithm:
             network.draw(inp_used, class_labels)
 
         # write results to csv file
-        with open(file_name, 'a') as file:
+        with open(file_name, "a") as file:
             writer = csv.writer(file)
-            writer.writerow([self.params, num_connections, round(training_accuracy, 4), round(test_accuracy.item(), 4),
-                             round(recall, 4), round(precision, 4), round(f1, 4)])
+            writer.writerow(
+                [
+                    self.params,
+                    num_connections,
+                    round(training_accuracy, 4),
+                    round(test_accuracy.item(), 4),
+                    round(recall, 4),
+                    round(precision, 4),
+                    round(f1, 4),
+                ]
+            )
