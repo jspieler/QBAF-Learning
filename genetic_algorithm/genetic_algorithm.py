@@ -7,10 +7,14 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 from GBAG import GBAG as GBAG
+from genetic_algorithm.operators.mutation import FlipMutation, SwapMutationBetweenChromosomes
 from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
 from genetic_algorithm.utils.graph_visualizations import remove_connections, NeuralNetwork
 from genetic_algorithm.utils.metrics import accuracy, sparsity
 from genetic_algorithm.utils.plots import plot_fitness, plot_loss, plot_conf_matrix
+
+
+mutation_operators = {"flip_mutation": FlipMutation, "swap_mutation": SwapMutationBetweenChromosomes}
 
 
 class GeneticAlgorithm:
@@ -50,14 +54,16 @@ class GeneticAlgorithm:
                 {'True', 'False'}, default='False'
 
     """
-
     def __init__(self, input_size, output_size, selection_method, crossover_method, mutation_method, params,
                  loss_function, show_graph=False, show_plots=False):
         self.input_size = input_size
         self.output_size = output_size
         self.selection_method = selection_method
         self.crossover_method = crossover_method
-        self.mutation_method = mutation_method
+        try:
+            self.mutation_operator = mutation_operators[mutation_method](params['mutation_rate'])
+        except KeyError:
+            raise ValueError("Got unknown method for mutation operator.")
         self.params = params
         self.loss_function = loss_function
         self.show_graph = show_graph
@@ -352,50 +358,6 @@ class GeneticAlgorithm:
                     c += 1
         return offspring
 
-    def flip_mutation(self, offspring):
-        """
-        Applies flip mutation on a binary encoded chromosome,
-        each gene whose probability is <= mutation rate is mutated randomly
-        """
-        mutation_offspring = np.array(offspring)
-        for offspring_idx in range(offspring.shape[0]):
-            probs = np.random.random(size=offspring.shape[1])
-            for gene_idx in range(offspring.shape[1]):
-                if probs[gene_idx] <= self.params['mutation_rate']:
-                    mutation_offspring[offspring_idx, gene_idx] = type(offspring[offspring_idx, gene_idx])(
-                        not offspring[offspring_idx, gene_idx])
-        return mutation_offspring
-
-    def swap_mutation_within_chromosome(self, offspring):
-        """
-        Applies swap mutation which interchanges 2 randomly selected genes within a chromosome (offspring)
-        """
-        mutation_offspring = np.array(offspring)
-        for offspring_idx in range(offspring.shape[0]):
-            prob = np.random.random(size=1)
-            if prob <= self.params['mutation_rate']:  # else offspring is returned without mutation
-                # get indices of zero and non-zero elements
-                ind_nz = np.where(offspring[offspring_idx] != 0)[0]
-                ind_z = np.where(offspring[offspring_idx] == 0)[0]
-                # randomly choose one index of each
-                idx_gene1 = np.random.choice(ind_nz, 1)
-                idx_gene2 = np.random.choice(ind_z, 1)
-                mutation_offspring[offspring_idx, idx_gene1] = offspring[offspring_idx, idx_gene2]
-                mutation_offspring[offspring_idx, idx_gene2] = offspring[offspring_idx, idx_gene1]
-        return mutation_offspring
-
-    def swap_mutation_between_chromosomes(self, offspring):
-        """
-        Applies swap mutation that interchanges 2 randomly selected genes between random pairs of chromosomes
-        """
-        for offspring_idx in range(int(offspring.shape[0] / 2)):
-            idx_offspring1, idx_offspring2 = np.random.choice(range(offspring.shape[0]), 2, False)
-            idx_gene1, idx_gene2 = np.random.choice(range(offspring.shape[1]), 2, False)
-            temp = offspring[idx_offspring1, idx_gene1]
-            offspring[idx_offspring1, idx_gene1] = offspring[idx_offspring2, idx_gene2]
-            offspring[idx_offspring2, idx_gene2] = temp
-        return offspring
-
     def run(self, X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels, class_labels, file_name):
         """
         Run genetic algorithm for given configuration
@@ -484,14 +446,8 @@ class GeneticAlgorithm:
                 raise ValueError("Got unknown method for crossover operator.")
 
             # mutation
-            if self.mutation_method == 'flip_mutation':
-                mutation_offspring = self.flip_mutation(crossover_offspring)
-                mutation_offspring2 = self.flip_mutation(crossover_offspring2)
-            elif self.mutation_method == 'swap_mutation':
-                mutation_offspring = self.swap_mutation_between_chromosomes(crossover_offspring)
-                mutation_offspring2 = self.swap_mutation_between_chromosomes(crossover_offspring2)
-            else:
-                raise ValueError("Got unknown method for mutation operator.")
+            mutation_offspring = self.mutation_operator.mutate(crossover_offspring)
+            mutation_offspring2 = self.mutation_operator.mutate(crossover_offspring2)
 
             # form new generation
             self.population = elitist
