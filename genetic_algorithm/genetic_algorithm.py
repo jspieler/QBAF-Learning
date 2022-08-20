@@ -8,12 +8,14 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 
 from GBAG import GBAG as GBAG
 from genetic_algorithm.operators.mutation import FlipMutation, SwapMutationBetweenChromosomes
+from genetic_algorithm.operators.selection import RankSelection, RouletteWheelSelection, TournamentSelection
 from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
 from genetic_algorithm.utils.graph_visualizations import remove_connections, NeuralNetwork
 from genetic_algorithm.utils.metrics import accuracy, sparsity
 from genetic_algorithm.utils.plots import plot_fitness, plot_loss, plot_conf_matrix
 
 
+selection_operators = {"roulette_wheel_selection": RouletteWheelSelection, "rank_selection": RankSelection, "tournament_selection": TournamentSelection}
 mutation_operators = {"flip_mutation": FlipMutation, "swap_mutation": SwapMutationBetweenChromosomes}
 
 
@@ -58,12 +60,12 @@ class GeneticAlgorithm:
                  loss_function, show_graph=False, show_plots=False):
         self.input_size = input_size
         self.output_size = output_size
-        self.selection_method = selection_method
-        self.crossover_method = crossover_method
         try:
+            self.selection_operator = selection_operators[selection_method](num_parents=int(0.5 * params['population_size']))
+            self.crossover_method = crossover_method
             self.mutation_operator = mutation_operators[mutation_method](params['mutation_rate'])
-        except KeyError:
-            raise ValueError("Got unknown method for mutation operator.")
+        except KeyError as e:
+            raise NotImplementedError(f"Got unknown method {e} for one of the operators.")
         self.params = params
         self.loss_function = loss_function
         self.show_graph = show_graph
@@ -401,14 +403,7 @@ class GeneticAlgorithm:
                 elitist.append(self.population[index])
 
             # selection
-            if self.selection_method == 'tournament_selection':
-                parents = self.tournament_selection(num_parents=int(0.5 * self.params['population_size']))
-            elif self.selection_method == 'roulette_wheel_selection':
-                parents = self.roulette_wheel_selection(num_parents=int(0.5 * self.params['population_size']))
-            elif self.selection_method == 'rank_selection':
-                parents = self.rank_selection(num_parents=int(0.5 * self.params['population_size']))
-            else:
-                raise ValueError("Got unknown method for selection.")
+            parents = self.selection_operator.select(self.population)
 
             # encoding of chromosomes
             pc1 = torch.empty(size=(len(parents), self.input_size * self.params['hidden_size']))
