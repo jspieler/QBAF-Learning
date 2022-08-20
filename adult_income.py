@@ -1,15 +1,15 @@
-import csv
 import warnings
 
 import numpy as np
 import pandas as pd
 import torch
-from genetic_algorithm import GeneticAlgorithm
+from torch.autograd import Variable
 from pandas import read_csv
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from torch.autograd import Variable
-from utils import binning
+
+from genetic_algorithm import GeneticAlgorithm
+from utils import binning, create_csv_with_header
 
 warnings.filterwarnings("ignore")
 device = torch.device("cpu")
@@ -105,20 +105,7 @@ inputs = np.concatenate((cat_label, num_label), axis=0)
 label = ["Income $\leq$ 50K", "Income $>$ 50K"]
 
 fname = "adult_income_results.csv"
-
-# create csv to store results
-with open(fname, "w") as file:
-    writer = csv.writer(file)
-    header = [
-        "Parameters",
-        "Number of connections",
-        "Training accuracy",
-        "Test accuracy",
-        "Recall",
-        "Precision",
-        "F1 score",
-    ]
-    writer.writerow(header)  # write the header
+create_csv_with_header(fname)
 
 for params in parameters.values():
     # set fixed seeds for reproducibility

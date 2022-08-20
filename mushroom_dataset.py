@@ -1,13 +1,14 @@
-import csv
 import warnings
 
 import numpy as np
 import pandas as pd
 import torch
-from genetic_algorithm import GeneticAlgorithm
+from torch.autograd import Variable
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from torch.autograd import Variable
+
+from genetic_algorithm import GeneticAlgorithm
+from utils import create_csv_with_header
 
 warnings.filterwarnings("ignore")
 device = torch.device("cpu")
@@ -53,20 +54,7 @@ inputs = X.columns.values
 label = ["edible", "poisonous"]
 
 fname = "mushroom_results.csv"
-
-# create csv to store results
-with open(fname, "w") as file:
-    writer = csv.writer(file)
-    header = [
-        "Parameters",
-        "Number of connections",
-        "Training accuracy",
-        "Test accuracy",
-        "Recall",
-        "Precision",
-        "F1 score",
-    ]
-    writer.writerow(header)  # write the header
+create_csv_with_header(fname)
 
 for params in parameters.values():
     # set fixed seeds for reproducibility

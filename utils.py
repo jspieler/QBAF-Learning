@@ -1,5 +1,6 @@
 import warnings
 
+import csv
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import KBinsDiscretizer
@@ -45,3 +46,19 @@ def binning(features, n_bins, strategy, encode, feature_names):
             binning_feature_names.append(fname)
     df = pd.DataFrame(np.concatenate(X, axis=1))
     return df, binning_feature_names
+
+
+def create_csv_with_header(fname):
+    """Creates a csv to store the results and writes a header."""
+    with open(fname, "w") as file:
+        writer = csv.writer(file)
+        header = [
+            "Parameters",
+            "Number of connections",
+            "Training accuracy",
+            "Test accuracy",
+            "Recall",
+            "Precision",
+            "F1 score",
+        ]
+        writer.writerow(header)

@@ -1,16 +1,16 @@
 import warnings
 
-import csv
 import numpy as np
 import pandas as pd
 import torch
-from genetic_algorithm import GeneticAlgorithm
-from genetic_algorithm.utils.loss_functions import cross_entropy_one_hot
+from torch.autograd import Variable
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from torch.autograd import Variable
-from utils import binning
+
+from genetic_algorithm import GeneticAlgorithm
+from genetic_algorithm.utils.loss_functions import cross_entropy_one_hot
+from utils import binning, create_csv_with_header
 
 warnings.filterwarnings("ignore")
 device = torch.device("cpu")
@@ -67,20 +67,7 @@ X, inputs = binning(
 label = ["Iris setosa", "Iris versicolor", "Iris virginica"]
 
 fname = "iris_results.csv"
-
-# create csv to store results and write header
-with open(fname, "w") as file:
-    writer = csv.writer(file)
-    header = [
-        "Parameters",
-        "Number of connections",
-        "Training accuracy",
-        "Test accuracy",
-        "Recall",
-        "Precision",
-        "F1 score",
-    ]
-    writer.writerow(header)
+create_csv_with_header(fname)
 
 for params in parameters.values():
     # set fixed seeds for reproducibility

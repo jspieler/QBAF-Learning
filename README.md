@@ -49,7 +49,7 @@ Follow installation instructions and install [Pytorch Sparse](https://github.com
 After importing the genetic algorithm, we can simply use it as follows:
 
 ```python
-from genetic_algorithm import GeneticAlgorithm as ga
+from genetic_algorithm import GeneticAlgorithm
 import torch
 
 params = {'number_runs': 10, 'population_size': 100, 'number_generations': 20, 'crossover_rate': 0.9, 'mutation_rate': 0.001, 
@@ -58,7 +58,7 @@ params = {'number_runs': 10, 'population_size': 100, 'number_generations': 20, '
 
 criterion = torch.nn.CrossEntropyLoss()
               
-model = ga(input_size=12, output_size=2, selection_method='tournament_selection',
+model = GeneticAlgorithm(input_size=12, output_size=2, selection_method='tournament_selection',
            crossover_method='two_point_crossover', mutation_method='flip_mutation', params=params,
            loss_function=criterion, show_graph=True)
 model.run(X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels=inputs, class_labels=label, file_name=fname)
@@ -68,7 +68,7 @@ model.run(X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels=inputs, class_label
 Following methods are implemented:
 
 * Selection: ```roulette_wheel_selection```, ```tournament_selection```, ```rank_selection```
-* Crossover: ```one_point_crossover```, ```two_point_crossover```, ```layerwise_crossover```
+* Crossover: ```one_point_crossover```, ```two_point_crossover```
 * Mutation: ```flip_mutation```, ```swap_mutation```
 
 
