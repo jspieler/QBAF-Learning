@@ -18,7 +18,7 @@ from genetic_algorithm.operators.selection import (
     RouletteWheelSelection,
     TournamentSelection,
 )
-from genetic_algorithm.utils.gbag import create_random_connectivity_matrix
+from genetic_algorithm.utils.gbag import create_random_connectivity_matrix, flatten_connectivity_matrix
 from genetic_algorithm.utils.graph_visualizations import (
     remove_connections,
     NeuralNetwork,
@@ -117,25 +117,37 @@ class GeneticAlgorithm:
         self.show_plots = show_plots
         self.population = None
 
-    def encode(self, connectivity_matrix, in_dim, out_dim):
+    def encode(self, parents):
+        """Encodes the structure of the graph as a bit string for genetic algorithm.
+
+        The rows of the connectivity matrix are concatenated.
         """
-        Encode structure of graph as a bit string for genetic algorithm (concatenation of rows of connectivity matrix)
-        """
-        nnz = connectivity_matrix.shape[1]
-        adj = torch.sparse.FloatTensor(
-            connectivity_matrix, torch.ones(nnz), torch.Size([out_dim, in_dim])
-        ).to_dense()
-        adj = adj.type(torch.DoubleTensor)
-        adj = torch.where(adj <= 1, adj, 1.0)  # remove redundant connections
-        return torch.flatten(adj)
+        pc1 = torch.empty(
+            size=(len(parents), self.input_size * self.params["hidden_size"])
+        )
+        pc2 = torch.empty(
+            size=(len(parents), self.params["hidden_size"] * self.output_size)
+        )
+        for i, p in enumerate(parents):
+            pc1[i] = flatten_connectivity_matrix(
+                p.sparse_linear1.connectivity,
+                in_dim=self.input_size,
+                out_dim=self.params["hidden_size"],
+            )
+            pc2[i] = flatten_connectivity_matrix(
+                p.sparse_linear2.connectivity,
+                in_dim=self.params["hidden_size"],
+                out_dim=self.output_size,
+            )
+
+        return pc1, pc2
 
     def decode(self, chromosome, shape):
-        """
-        Convert genotype back to phenotype
-        Transform bit string/chromosome representation back to tensor representation
-        First, chromosome has to reshaped (unflattened)
-        before the dense adjacency matrix has to be converted to sparse adjacency matrix
-        input: shape (m,n)
+        """Converts the genotype back to the phenotype.
+
+        Transforms the bit string/chromosome representation back to the tensor representation.
+        First, chromosome has to reshaped (unflattened), before the dense adjacency matrix has
+        to be converted to sparse adjacency matrix of shape (m,n).
         """
         chrom = torch.reshape(torch.from_numpy(chromosome), shape)
         assert chrom.dim() == 2
@@ -149,6 +161,7 @@ class GeneticAlgorithm:
         return torch.stack((ind[1], ind[0]), dim=0)
 
     def create_population(self, individual):
+        """Creates the initial population."""
         self.population = [
             individual(
                 input_size=self.input_size,
@@ -168,6 +181,43 @@ class GeneticAlgorithm:
             for _ in range(self.params["population_size"])
         ]
 
+    def create_new_generation(self, elitist, mutation_offspring, mutation_offspring2):
+        """Creates a new generation.
+
+        Generation is created from best individuals (elitism) and mutated offspring.
+
+        Args:
+            elitist: A list containing the best individuals.
+            mutation_offspring: The first half of the mutated offspring.
+            mutation_offspring2: The second half of the mutated offspring.
+        """
+        self.population = elitist
+        # reshape connectivity matrices and create new G-BAGs (offspring) given the new connectivity matrix
+        for i, o in enumerate(
+                range(
+                    int(
+                        (1 - self.params["elitist_pct"])
+                        * self.params["population_size"]
+                    )
+                )
+        ):
+            sl1_conn = self.decode(
+                mutation_offspring[i],
+                shape=(self.input_size, self.params['hidden_size']),
+            )
+            sl2_conn = self.decode(
+                mutation_offspring2[i],
+                shape=(self.params['hidden_size'], self.output_size),
+            )
+            child = GBAG(
+                input_size=self.input_size,
+                hidden_size=self.params["hidden_size"],
+                output_size=self.output_size,
+                connections1=sl1_conn,
+                connections2=sl2_conn,
+            )
+            self.population.append(child)
+
     def fitness(
         self,
         population,
@@ -179,7 +229,7 @@ class GeneticAlgorithm:
         opt_func=torch.optim.Adam,
         minibatch=False,
     ):
-        # get fitness/loss of each individual
+        """Gets the fitness/loss of each individual."""
         for individual in population:
             individual.fitness = torch.autograd.Variable(
                 torch.tensor(np.inf, dtype=torch.float)
@@ -253,8 +303,7 @@ class GeneticAlgorithm:
         class_labels,
         file_name,
     ):
-        """
-        Run genetic algorithm for given configuration
+        """Runs the genetic algorithm for a given configuration.
 
         inputs:
                 - training (tr), validation (val) and test (te) data
@@ -302,23 +351,7 @@ class GeneticAlgorithm:
             parents = self.selection_operator.select(self.population)
 
             # encoding of chromosomes
-            pc1 = torch.empty(
-                size=(len(parents), self.input_size * self.params["hidden_size"])
-            )
-            pc2 = torch.empty(
-                size=(len(parents), self.params["hidden_size"] * self.output_size)
-            )
-            for i, p in enumerate(parents):
-                pc1[i] = self.encode(
-                    p.sparse_linear1.connectivity,
-                    in_dim=self.input_size,
-                    out_dim=self.params["hidden_size"],
-                )
-                pc2[i] = self.encode(
-                    p.sparse_linear2.connectivity,
-                    in_dim=self.params["hidden_size"],
-                    out_dim=self.output_size,
-                )
+            pc1, pc2 = self.encode(parents)
 
             # crossover
             crossover_offspring = self.crossover_operator.crossover(pc1)
@@ -329,32 +362,7 @@ class GeneticAlgorithm:
             mutation_offspring2 = self.mutation_operator.mutate(crossover_offspring2)
 
             # form new generation
-            self.population = elitist
-            # reshape connectivity matrices and create new G-BAGs (offspring) given the new connectivity matrix
-            for i, o in enumerate(
-                range(
-                    int(
-                        (1 - self.params["elitist_pct"])
-                        * self.params["population_size"]
-                    )
-                )
-            ):
-                sl1_conn = self.decode(
-                    mutation_offspring[i],
-                    shape=(self.input_size, self.params["hidden_size"]),
-                )
-                sl2_conn = self.decode(
-                    mutation_offspring2[i],
-                    shape=(self.params["hidden_size"], self.output_size),
-                )
-                child = GBAG(
-                    input_size=self.input_size,
-                    hidden_size=self.params["hidden_size"],
-                    output_size=self.output_size,
-                    connections1=sl1_conn,
-                    connections2=sl2_conn,
-                )
-                self.population.append(child)
+            self.create_new_generation(elitist, mutation_offspring, mutation_offspring2)
 
             # evaluate fitness of new population
             self.fitness(
