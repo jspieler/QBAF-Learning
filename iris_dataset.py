@@ -1,18 +1,18 @@
 import warnings
 
-import csv
 import numpy as np
 import pandas as pd
 import torch
-from genetic_algorithm import GeneticAlgorithm as ga
-from genetic_algorithm import cross_entropy_one_hot
+from torch.autograd import Variable
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from torch.autograd import Variable
-from utils import binning
 
-warnings.filterwarnings('ignore')
+from genetic_algorithm import GeneticAlgorithm
+from genetic_algorithm.utils.loss_functions import cross_entropy_one_hot
+from utils import binning, create_csv_with_header
+
+warnings.filterwarnings("ignore")
 device = torch.device("cpu")
 
 
@@ -57,27 +57,30 @@ encoder = OneHotEncoder(sparse=False)
 y = encoder.fit_transform(y_)
 
 # binning of features
-X, inputs = binning(pd.DataFrame(x), n_bins=3, encode='onehot-dense', strategy='uniform',
-                    feature_names=['Petal length', 'Petal width', 'Sepal length', 'Sepal width'])
-label = ['Iris setosa', 'Iris versicolor', 'Iris virginica']
+X, inputs = binning(
+    pd.DataFrame(x),
+    n_bins=3,
+    encode="onehot-dense",
+    strategy="uniform",
+    feature_names=["Petal length", "Petal width", "Sepal length", "Sepal width"],
+)
+label = ["Iris setosa", "Iris versicolor", "Iris virginica"]
 
-fname = 'iris_results.csv'
-
-# create csv to store results and write header
-with open(fname, 'w') as file:
-    writer = csv.writer(file)
-    header = ["Parameters", "Number of connections", "Training accuracy", "Test accuracy", "Recall", "Precision",
-              "F1 score"]
-    writer.writerow(header)
+fname = "iris_results.csv"
+create_csv_with_header(fname)
 
 for params in parameters.values():
     # set fixed seeds for reproducibility
     torch.manual_seed(2021)
     np.random.seed(2021)  # scikit-learn also uses numpy random seed
-    for run in range(params['number_runs']):
+    for run in range(params["number_runs"]):
         # split train and test data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.125, stratify=y_train)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, stratify=y
+        )
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_train, y_train, test_size=0.125, stratify=y_train
+        )
         X_tr = Variable(torch.tensor(X_train.to_numpy(), dtype=torch.float))
         X_te = Variable(torch.tensor(X_test.to_numpy(), dtype=torch.float))
         y_tr = Variable(torch.tensor(y_train, dtype=torch.float))
@@ -85,7 +88,23 @@ for params in parameters.values():
         X_val = Variable(torch.tensor(X_val.to_numpy(), dtype=torch.float))
         y_val = Variable(torch.tensor(y_val, dtype=torch.float))
 
-        model = ga(input_size=X.shape[1], output_size=3, selection_method='tournament_selection',
-                   crossover_method='two_point_crossover', mutation_method='flip_mutation', params=params,
-                   loss_function=cross_entropy_one_hot)
-        model.run(X_tr, y_tr, X_val, y_val, X_te, y_te, input_labels=inputs, class_labels=label, file_name=fname)
+        model = GeneticAlgorithm(
+            input_size=X.shape[1],
+            output_size=3,
+            selection_method="tournament_selection",
+            crossover_method="two_point_crossover",
+            mutation_method="flip_mutation",
+            params=params,
+            loss_function=cross_entropy_one_hot,
+        )
+        model.run(
+            X_tr,
+            y_tr,
+            X_val,
+            y_val,
+            X_te,
+            y_te,
+            input_labels=inputs,
+            class_labels=label,
+            file_name=fname,
+        )
